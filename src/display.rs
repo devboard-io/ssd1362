@@ -7,6 +7,7 @@ use embedded_graphics::{
     pixelcolor::{BinaryColor}
 };
 
+
 ///! Display rotation
 /// Note that 90º and 270º rotations are not supported by
 // [`TerminalMode`](../mode/terminal/struct.TerminalMode.html).
@@ -38,6 +39,26 @@ impl DisplaySize {
         }
     }
 }
+
+// pub struct View {
+//     coord: (usize, usize),
+//     size: (usize, usize),
+//     displaybuffer: &'static[u8]
+// }
+
+// impl View {
+
+//     pub fn new(coord: (usize, usize), size: (usize, usize)) -> Self {
+
+//         View {
+//             coord,
+//             size,
+//             displaybuffer: &[0; 10]
+//         }
+//     }
+// }
+
+
 
 pub struct Display<DI> {
     iface: DI,
@@ -88,6 +109,8 @@ where
         Command::PreChargeVoltage(0x04).send(&mut self.iface)?;
         Command::VcomhDeselect(VcomhLevel::V082).send(&mut self.iface)?;
 
+        // Command::VScrollArea(20, 30).send(&mut self.iface)?;
+
         Ok(())
     }
 
@@ -122,6 +145,10 @@ where
     /// Turn the display off.
     pub fn off(&mut self) -> Result<(), DI::Error> {
         Command::DisplayOn(false).send(&mut self.iface)
+    }
+
+    pub fn scroll(&mut self, offset: u8) -> Result<(), DI::Error> {
+        Command::DisplayOffset(offset).send(&mut self.iface)
     }
 
 
