@@ -7,6 +7,8 @@ use embedded_graphics::{
     pixelcolor::{BinaryColor}
 };
 
+use crate::chars::{get_char, TerminalChar};
+
 
 ///! Display rotation
 /// Note that 90º and 270º rotations are not supported by
@@ -29,6 +31,7 @@ pub enum DisplaySize {
     /// 256 by 64 pixels
     Display256x64,
 }
+
 
 impl DisplaySize {
     /// Get integral dimensions from DisplaySize
@@ -151,39 +154,63 @@ where
         Command::DisplayOffset(offset).send(&mut self.iface)
     }
 
-
-    pub fn write_char(&mut self, chr: &[u8; 32], c: u8) -> Result<(), DI::Error> {
-
-        let mut bitmap: [u8; 4*32] = [0; 4*32];
-
-        let mut index = 0;
-        let mut nibble = 0;
-        for i in 0..chr.len() {
-
-            let byte = chr[i];
-
-            for m in 0..8_u8 {
-                let r = byte & (1 << (7-m));
-
-                if r != 0 {
-                    bitmap[index] |= 0x0F << (4*nibble);
-                }
-
-                nibble += 1;
-
-                if nibble > 1 {
-                    index += 1;
-                    nibble = 0;
-                }
-            }
+    pub fn write_string(&mut self, s: &str, x: u8, y: u8)  -> Result<(), DI::Error>  {
+        let mut i: u8 = 0;
+        for c in s.chars() {
+            self.write_char(c, x+i, y)?;
+            i += 1;
         }
-
-
-        Command::ColumnAddress(c*8, c*8+8 - 1).send(&mut self.iface)?;
-        Command::RowAddress(0, 16 - 1).send(&mut self.iface)?;
-        self.draw(&bitmap)
-
+        Ok(())
     }
+
+    pub fn write_char(&mut self, chr: char, x: u8, y:u8) -> Result<(), DI::Error> {
+        let chr = get_char(chr as u8);
+
+        // Columns are 2 pixels wide
+        let w = chr.w/2;
+        let x_start = x * w;
+        let x_end = x_start + w - 1;
+
+        let y_start = y * chr.h;
+        let y_end = y_start + chr.h - 1;
+
+        Command::ColumnAddress(x_start, x_end).send(&mut self.iface)?;
+        Command::RowAddress(y_start, y_end).send(&mut self.iface)?;
+        self.draw(&chr.bitmap())
+    }
+
+
+    // pub fn write_char(&mut self, chr: &[u8; 32], c: u8) -> Result<(), DI::Error> {
+
+    //     let mut bitmap: [u8; 4*32] = [0; 4*32];
+
+    //     let mut index = 0;
+    //     let mut nibble = 0;
+    //     for i in 0..chr.len() {
+
+    //         let byte = chr[i];
+
+    //         for m in 0..8_u8 {
+    //             let r = byte & (1 << (7-m));
+
+    //             if r != 0 {
+    //                 bitmap[index] |= 0x0F << (4*nibble);
+    //             }
+
+    //             nibble += 1;
+
+    //             if nibble > 1 {
+    //                 index += 1;
+    //                 nibble = 0;
+    //             }
+    //         }
+    //     }
+
+    //     Command::ColumnAddress(c*8, c*8+8 - 1).send(&mut self.iface)?;
+    //     Command::RowAddress(0, 16 - 1).send(&mut self.iface)?;
+    //     self.draw(&bitmap)
+
+    // }
 
 
     pub fn flush(&mut self) -> Result<(), DI::Error> {
