@@ -1,6 +1,6 @@
 # Specific for stm32g070 nucleo board with onboard stlink
 [target.thumbv6m-none-eabi]
-runner = "./flash.sh 0x08000000"
+runner = "./bmp.sh"
 rustflags = [
   "-C", "link-arg=-Tlink.x"
 ]

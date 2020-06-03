@@ -7,3 +7,5 @@ mod command;
 pub mod error;
 pub mod display;
 mod chars;
+
+pub mod terminal;

@@ -1,5 +1,5 @@
 
-use crate::interface::DisplayInterface;
+use display_interface::{DataFormat::U8, DisplayError, WriteOnlyDataCommand};
 
 /// SSD1362 Commands
 /// Based on the command table from the OEL9M1020-O-E datasheet
@@ -96,9 +96,9 @@ pub enum Command {
 
 impl Command {
     /// Send command to SSD1362
-    pub fn send<DI>(self, iface: &mut DI) -> Result<(), DI::Error>
+    pub fn send<DI>(self, iface: &mut DI) -> Result<(), DisplayError>
     where
-        DI: DisplayInterface,
+        DI: WriteOnlyDataCommand,
     {
 
         // Transform command into a fixed size array of 7 u8 and the real length for sending
@@ -128,7 +128,7 @@ impl Command {
         };
 
         // Send command over the interface
-        iface.send_commands(&data[0..len])
+        iface.send_commands(U8(&data[0..len]))
     }
 }
 

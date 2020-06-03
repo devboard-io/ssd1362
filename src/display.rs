@@ -1,11 +1,12 @@
 use crate::command::{Command, VcomhLevel, DisplayMode};
-use crate::interface::DisplayInterface;
+// use crate::interface::DisplayInterface;
 use embedded_graphics::{
     drawable::Pixel,
     DrawTarget,
     geometry::Size,
     pixelcolor::{BinaryColor}
 };
+use display_interface::{DataFormat::U8, DisplayError, WriteOnlyDataCommand};
 
 use crate::chars::{get_char, TerminalChar};
 
@@ -67,13 +68,13 @@ pub struct Display<DI> {
     iface: DI,
     rotation: DisplayRotation,
     size: DisplaySize,
-    displaybuffer: [bool; 256*64] //[row0 row1 row2 ... row62] TODO: buffer size depends on display size
+    // displaybuffer: [bool; 256*4] //[row0 row1 row2 ... row62] TODO: buffer size depends on display size
 }
 
 
 impl<DI> Display<DI>
 where
-    DI: DisplayInterface,
+    DI: WriteOnlyDataCommand,
 {
     pub fn new(iface: DI, rotation: DisplayRotation) -> Display<DI> {
         let size = DisplaySize::Display256x64;
@@ -82,11 +83,11 @@ where
             iface,
             rotation,
             size,
-            displaybuffer: [false; 256*64] // TODO: buffer size depends on display size
+            // displaybuffer: [false; 256*4] // TODO: buffer size depends on display size
         }
     }
 
-    pub fn init(&mut self) -> Result<(), DI::Error> {
+    pub fn init(&mut self) -> Result<(), DisplayError> {
 
         Command::InternalVDD(true).send(&mut self.iface)?;
         Command::InternalIREF(true).send(&mut self.iface)?;
@@ -117,7 +118,7 @@ where
         Ok(())
     }
 
-    pub fn blank(&mut self) -> Result<(), DI::Error> {
+    pub fn blank(&mut self) -> Result<(), DisplayError> {
         Command::ColumnAddress(0, 127).send(&mut self.iface)?;
         Command::RowAddress(0, 63).send(&mut self.iface)?;
 
@@ -133,128 +134,118 @@ where
         }
     }
 
+
+    /// Set the position in the framebuffer of the display limiting where any sent data should be
+    /// drawn. This method can be used for changing the affected area on the screen as well
+    /// as (re-)setting the start point of the next `draw` call.
+    /// Only works in Horizontal or Vertical addressing mode
+    pub fn set_draw_area(&mut self, start: (u8, u8), end: (u8, u8)) -> Result<(), DisplayError> {
+
+        // match self.addr_mode {
+        //     AddrMode::Page => panic!("Device cannot be in Page mode to set draw area"),
+        //     _ => {
+        //         Command::ColumnAddress(start.0, end.0 - 1).send(&mut self.iface)?;
+        //         Command::PageAddress(start.1.into(), (end.1 - 1).into()).send(&mut self.iface)?;
+        //         Ok(())
+        //     }
+        // }
+
+        Command::ColumnAddress(start.0, end.0 - 1).send(&mut self.iface)?;
+        Command::RowAddress(start.1.into(), (end.1 - 1).into()).send(&mut self.iface)?;
+        Ok(())
+    }
+
+
     /// Send the data to the display for drawing at the current position in the framebuffer
     /// and advance the position accordingly. Cf. `set_draw_area` to modify the area affected by
     /// this method in horizontal / vertical mode.
-    pub fn draw(&mut self, buffer: &[u8]) -> Result<(), DI::Error> {
-        self.iface.send_data(&buffer)
+    pub fn draw(&mut self, buffer: &[u8]) -> Result<(), DisplayError> {
+        self.iface.send_data(U8(buffer))
     }
 
     /// Turn the display on.
-    pub fn on(&mut self) -> Result<(), DI::Error> {
+    pub fn on(&mut self) -> Result<(), DisplayError> {
         Command::DisplayOn(true).send(&mut self.iface)
     }
 
     /// Turn the display off.
-    pub fn off(&mut self) -> Result<(), DI::Error> {
+    pub fn off(&mut self) -> Result<(), DisplayError> {
         Command::DisplayOn(false).send(&mut self.iface)
     }
 
-    pub fn scroll(&mut self, offset: u8) -> Result<(), DI::Error> {
+    pub fn scroll(&mut self, offset: u8) -> Result<(), DisplayError> {
         Command::DisplayOffset(offset).send(&mut self.iface)
     }
 
-    pub fn write_string(&mut self, s: &str, x: u8, y: u8)  -> Result<(), DI::Error>  {
-        let mut i: u8 = 0;
-        for c in s.chars() {
-            self.write_char(c, x+i, y)?;
-            i += 1;
-        }
-        Ok(())
-    }
-
-    pub fn write_char(&mut self, chr: char, x: u8, y:u8) -> Result<(), DI::Error> {
-        let chr = get_char(chr as u8);
-
-        // Columns are 2 pixels wide
-        let w = chr.w/2;
-        let x_start = x * w;
-        let x_end = x_start + w - 1;
-
-        let y_start = y * chr.h;
-        let y_end = y_start + chr.h - 1;
-
-        Command::ColumnAddress(x_start, x_end).send(&mut self.iface)?;
-        Command::RowAddress(y_start, y_end).send(&mut self.iface)?;
-        self.draw(&chr.bitmap())
-    }
-
-
-    // pub fn write_char(&mut self, chr: &[u8; 32], c: u8) -> Result<(), DI::Error> {
-
-    //     let mut bitmap: [u8; 4*32] = [0; 4*32];
-
-    //     let mut index = 0;
-    //     let mut nibble = 0;
-    //     for i in 0..chr.len() {
-
-    //         let byte = chr[i];
-
-    //         for m in 0..8_u8 {
-    //             let r = byte & (1 << (7-m));
-
-    //             if r != 0 {
-    //                 bitmap[index] |= 0x0F << (4*nibble);
-    //             }
-
-    //             nibble += 1;
-
-    //             if nibble > 1 {
-    //                 index += 1;
-    //                 nibble = 0;
-    //             }
-    //         }
+    // pub fn write_string(&mut self, s: &str, x: u8, y: u8)  -> Result<(), DI::Error>  {
+    //     let mut i: u8 = 0;
+    //     for c in s.chars() {
+    //         self.write_char(c, x+i, y)?;
+    //         i += 1;
     //     }
-
-    //     Command::ColumnAddress(c*8, c*8+8 - 1).send(&mut self.iface)?;
-    //     Command::RowAddress(0, 16 - 1).send(&mut self.iface)?;
-    //     self.draw(&bitmap)
-
+    //     Ok(())
     // }
 
+    // pub fn write_char(&mut self, chr: char, x: u8, y:u8) -> Result<(), DI::Error> {
+    //     let chr = get_char(chr as u8);
 
-    pub fn flush(&mut self) -> Result<(), DI::Error> {
+    //     // Columns are 2 pixels wide
+    //     let w = chr.w/2;
+    //     let x_start = x * w;
+    //     let x_end = x_start + w - 1;
 
-        let (w, h) = self.dimensions();
+    //     let y_start = y * chr.h;
+    //     let y_end = y_start + chr.h - 1;
 
-        for i in 0..h {
+    //     Command::ColumnAddress(x_start, x_end).send(&mut self.iface)?;
+    //     Command::RowAddress(y_start, y_end).send(&mut self.iface)?;
+    //     self.draw(&chr.bitmap())
+    // }
 
-            let mut linebuffer: [u8; 256/2] = [0; 128];
+    // pub fn flush(&mut self) -> Result<(), DisplayError> {
 
-            for j in 0..w {
-                let idx: usize = i*w+j;
-                let b = self.displaybuffer[idx];
+    //     let (w, h) = self.dimensions();
 
-                let line_idx: usize = j/2;
-                let shift = j % 2;
-                linebuffer[line_idx] |= (0xFF * b as u8) << (4*shift);
-            }
-            Command::ColumnAddress(0, 127).send(&mut self.iface)?;
-            Command::RowAddress(i as u8, 63).send(&mut self.iface)?;
-            self.draw(&linebuffer)?;
-        }
+    //     for i in 0..h {
 
-        Ok(())
-    }
+    //         let mut linebuffer: [u8; 256/2] = [0; 128];
+
+    //         for j in 0..w {
+    //             let idx: usize = i*w+j;
+    //             let b = self.displaybuffer[idx];
+
+    //             let line_idx: usize = j/2;
+    //             let shift = j % 2;
+    //             linebuffer[line_idx] |= (0xFF * b as u8) << (4*shift);
+    //         }
+    //         Command::ColumnAddress(0, 127).send(&mut self.iface)?;
+    //         Command::RowAddress(i as u8, 63).send(&mut self.iface)?;
+    //         self.draw(&linebuffer)?;
+    //     }
+
+    //     Ok(())
+    // }
 }
 
-impl<DI> DrawTarget<BinaryColor> for Display<DI>
-where
-    DI: DisplayInterface,
-{
+// impl<DI> DrawTarget<BinaryColor> for Display<DI>
+// where
+//     DI: WriteOnlyDataCommand,
+// {
+//     type Error = core::convert::Infallible;
 
-    fn draw_pixel(&mut self, pixel: Pixel<BinaryColor>) {
-        let Pixel(coord, color) = pixel;
+//     fn draw_pixel(&mut self, pixel: Pixel<BinaryColor>) -> Result<(), Self::Error> {
+//         let Pixel(coord, color) = pixel;
 
-        let i = coord.y as u32 * self.size().width + coord.x as u32;
-        if i < self.displaybuffer.len() as u32{
-            self.displaybuffer[i as usize] = color.is_on();
-        }
-    }
+//         let i = coord.y as u32 * self.size().width + coord.x as u32;
+//         if i < self.displaybuffer.len() as u32{
+//             self.displaybuffer[i as usize] = color.is_on();
+//         }
+//         Ok(())
+//     }
 
-    fn size(&self) -> Size {
-        let (w,h) = self.dimensions();
-        Size::new(w as u32, h as u32)
-    }
+//     fn size(&self) -> Size {
+//         let (w,h) = self.dimensions();
+//         Size::new(w as u32, h as u32)
+//     }
 
-}
+// }

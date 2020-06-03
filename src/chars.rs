@@ -2,7 +2,7 @@
 pub fn get_char(chr: u8) -> TerminalChar {
     let i: usize = (chr as usize ) * 8;
     let j: usize = i+8;
-    TerminalChar {src:  &console_font_6x8[i .. j], w: 8, h: 8}
+    TerminalChar {src:  &CONSOLE_FONT_6X8[i .. j], w: 8, h: 8}
 }
 
 pub struct TerminalChar {
@@ -46,7 +46,7 @@ impl TerminalChar {
 }
 
 
-const console_font_6x8: [u8; 2048] = [
+const CONSOLE_FONT_6X8: [u8; 2048] = [
         /*
          * code=0, hex=0x00, ascii="^@"
          */
