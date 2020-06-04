@@ -9,27 +9,26 @@ use crate::display::Display;
 /// Contains the new row that the cursor has wrapped around to
 struct CursorWrapEvent(usize);
 
-struct Cursor<F> {
-    font: F,
+struct Cursor {
     col: usize,
     row: usize,
     width: usize,
     height: usize,
+    char_size: (usize, usize),
 }
 
-impl<F> Cursor<F>
-where F: TerminalFont {
-    pub fn new(mut font: F, display_dimensions: (usize, usize)) -> Self {
-        let (chr_width, chr_height) = font.char_size();
+impl Cursor {
+    pub fn new(char_size: (usize, usize), display_dimensions: (usize, usize)) -> Self {
+        let (chr_width, chr_height) = char_size;
 
         let width = display_dimensions.0 / chr_width;
         let height = display_dimensions.1 / chr_height;
         Cursor {
-            font,
             col: 0,
             row: 0,
             width,
             height,
+            char_size
         }
     }
 
@@ -55,7 +54,7 @@ where F: TerminalFont {
 
     pub fn get_char_box(&mut self) -> ((u8, u8), (u8, u8)) {
 
-        let (chr_w,chr_h) = self.font.char_size();
+        let (chr_w,chr_h) = self.char_size;
 
         let w = chr_w/2;
         let x_start = self.col * w;
@@ -88,8 +87,9 @@ where F: TerminalFont {
 
 pub struct TerminalView<DI, F> {
     display: Display<DI>,
-    cursor: Cursor<F>,
-    line_buffer: [[u8;32]; 8],
+    cursor: Cursor,
+    font: F,
+    line_buffer: [[u8;32]; 8], //TODO: should depen on view size and font size
     tabsize: u8,
 }
 
@@ -99,11 +99,12 @@ where
     F: TerminalFont
 {
     /// Create new TerminalMode instance
-    pub fn new(display: Display<DI>, font: F) -> Self {
-        let cursor = Cursor::new(font, display.dimensions());
+    pub fn new(display: Display<DI>, mut font: F) -> Self {
+        let cursor = Cursor::new(font.char_size(), display.dimensions());
         TerminalView {
             display,
             cursor,
+            font,
             line_buffer: [[0u8;32]; 8],
             tabsize: 4u8
         }
@@ -160,8 +161,7 @@ where
     }
 
     fn draw_char(&mut self, chr: char) -> Result<(), DisplayError> {
-        let mut font: Font6x8 = Font6x8 {};
-        let bitmap = font.get_char(chr as u8);
+        let bitmap = self.font.get_char(chr as u8);
         let draw_area = self.cursor.get_char_box();
         self.display.set_draw_area(draw_area.0, draw_area.1)?;
         self.display.draw(&bitmap)?;
