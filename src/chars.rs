@@ -1,21 +1,15 @@
 
 pub trait TerminalFont {
-    fn char_size(&mut self) -> (u8, u8);
+    fn char_size(&mut self) -> (usize, usize);
 
     fn get_char(&mut self, chr: u8) -> [u8; 8*4];
-}
-
-pub fn get_char(chr: u8) -> TerminalChar {
-    let i: usize = (chr as usize ) * 8;
-    let j: usize = i+8;
-    TerminalChar {src:  &CONSOLE_FONT_6X8[i .. j], w: 8, h: 8}
 }
 
 pub struct Font6x8 {}
 
 impl TerminalFont for Font6x8 {
 
-    fn char_size(&mut self) -> (u8, u8)  {
+    fn char_size(&mut self) -> (usize, usize)  {
         return (8, 8)
     }
 

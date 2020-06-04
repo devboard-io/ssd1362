@@ -8,8 +8,6 @@ use embedded_graphics::{
 };
 use display_interface::{DataFormat::U8, DisplayError, WriteOnlyDataCommand};
 
-use crate::chars::{get_char, TerminalChar};
-
 
 ///! Display rotation
 /// Note that 90º and 270º rotations are not supported by

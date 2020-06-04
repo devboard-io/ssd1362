@@ -3,24 +3,29 @@
 use display_interface::{DisplayError, WriteOnlyDataCommand};
 use core::{cmp::min, fmt};
 
-use crate::chars::{get_char, TerminalChar, Font6x8, TerminalFont};
+pub use crate::chars::{Font6x8, TerminalFont};
 use crate::display::Display;
 
 /// Contains the new row that the cursor has wrapped around to
 struct CursorWrapEvent(usize);
 
-struct Cursor {
+struct Cursor<F> {
+    font: F,
     col: usize,
     row: usize,
     width: usize,
     height: usize,
 }
 
-impl Cursor {
-    pub fn new(width_pixels: usize, height_pixels: usize) -> Self {
-        let width = width_pixels / 8;
-        let height = height_pixels / 8;
+impl<F> Cursor<F>
+where F: TerminalFont {
+    pub fn new(mut font: F, display_dimensions: (usize, usize)) -> Self {
+        let (chr_width, chr_height) = font.char_size();
+
+        let width = display_dimensions.0 / chr_width;
+        let height = display_dimensions.1 / chr_height;
         Cursor {
+            font,
             col: 0,
             row: 0,
             width,
@@ -48,6 +53,20 @@ impl Cursor {
         CursorWrapEvent(self.row)
     }
 
+    pub fn get_char_box(&mut self) -> ((u8, u8), (u8, u8)) {
+
+        let (chr_w,chr_h) = self.font.char_size();
+
+        let w = chr_w/2;
+        let x_start = self.col * w;
+        let x_end = x_start + w;
+
+        let y_start = self.row * chr_h;
+        let y_end = y_start + chr_h;
+
+        ((x_start as u8, y_start as u8), (x_end as u8, y_end as u8))
+    }
+
     // /// Sets the position of the logical cursor arbitrarily.
     // /// The position will be capped at the maximal possible position.
     // pub fn set_position(&mut self, col: u8, row: u8) {
@@ -67,22 +86,26 @@ impl Cursor {
 }
 
 
-pub struct TerminalView<DI> {
+pub struct TerminalView<DI, F> {
     display: Display<DI>,
-    cursor: Cursor,
+    cursor: Cursor<F>,
+    line_buffer: [[u8;32]; 8],
+    tabsize: u8,
 }
 
-impl<DI> TerminalView<DI>
+impl<DI, F> TerminalView<DI, F>
 where
     DI: WriteOnlyDataCommand,
+    F: TerminalFont
 {
     /// Create new TerminalMode instance
-    pub fn new(display: Display<DI>) -> Self {
-        let (display_width,display_height) = display.dimensions();
-        let cursor = Cursor::new(display_width, display_height);
+    pub fn new(display: Display<DI>, font: F) -> Self {
+        let cursor = Cursor::new(font, display.dimensions());
         TerminalView {
             display,
             cursor,
+            line_buffer: [[0u8;32]; 8],
+            tabsize: 4u8
         }
     }
 
@@ -90,7 +113,7 @@ where
         self.display.init()?;
         self.display.on()?;
         self.clear()?;
-        self.write_char('A', 0,0)?;
+        self.write_char(0x1A as char)?;
         Ok(())
     }
 
@@ -104,33 +127,45 @@ where
         Ok(())
     }
 
-    pub fn write_string(&mut self, s: &str, x: u8, y: u8)  -> Result<(), DisplayError>  {
-        let mut i: u8 = 0;
+    pub fn new_line(&mut self) -> Result<(), DisplayError> {
+        self.cursor.advance_line();
+        self.write_char(0x1A as char)
+    }
+
+    pub fn write_string(&mut self, s: &str)  -> Result<(), DisplayError>  {
         for c in s.chars() {
-            self.write_char(c, x+i, y)?;
-            i += 1;
+            self.write_char(c)?;
         }
         Ok(())
     }
 
-    pub fn write_char(&mut self, chr: char, x: u8, y:u8) -> Result<(), DisplayError> {
+    pub fn write_char(&mut self, chr: char) -> Result<(), DisplayError> {
 
+
+
+        match chr {
+            '\n' => self.new_line()?,
+            '\t' => {
+                for _ in 0..self.tabsize {
+                    self.draw_char(' ')?;
+                }
+
+            },
+            '\r' => {},
+            _ => self.draw_char(chr)?
+        }
+
+
+        Ok(())
+    }
+
+    fn draw_char(&mut self, chr: char) -> Result<(), DisplayError> {
         let mut font: Font6x8 = Font6x8 {};
-        let (chr_w,chr_h) = font.char_size();
         let bitmap = font.get_char(chr as u8);
-
-
-        // let chr = get_char(chr as u8);
-
-        // Columns are 2 pixels wide
-        let w = chr_w/2;
-        let x_start = x * w;
-        let x_end = x_start + w;
-
-        let y_start = y * chr_h;
-        let y_end = y_start + chr_h;
-
-        self.display.set_draw_area((x_start, y_start), (x_end, y_end))?;
-        self.display.draw(&bitmap)
+        let draw_area = self.cursor.get_char_box();
+        self.display.set_draw_area(draw_area.0, draw_area.1)?;
+        self.display.draw(&bitmap)?;
+        self.cursor.advance();
+        Ok(())
     }
 }
