@@ -6,6 +6,9 @@ use core::{cmp::min, fmt};
 pub use crate::chars::{Font6x8, TerminalFont};
 use crate::display::Display;
 
+use heapless::spsc::Queue;
+use heapless::consts::*;
+
 /// Contains the new row that the cursor has wrapped around to
 struct CursorWrapEvent(usize);
 
@@ -52,7 +55,7 @@ impl Cursor {
         CursorWrapEvent(self.row)
     }
 
-    pub fn get_char_box(&mut self) -> ((u8, u8), (u8, u8)) {
+    pub fn get_char_box(&self) -> ((u8, u8), (u8, u8)) {
 
         let (chr_w,chr_h) = self.char_size;
 
@@ -66,17 +69,17 @@ impl Cursor {
         ((x_start as u8, y_start as u8), (x_end as u8, y_end as u8))
     }
 
-    // /// Sets the position of the logical cursor arbitrarily.
-    // /// The position will be capped at the maximal possible position.
-    // pub fn set_position(&mut self, col: u8, row: u8) {
-    //     self.col = min(col, self.width - 1);
-    //     self.row = min(row, self.height - 1);
-    // }
+    /// Sets the position of the logical cursor arbitrarily.
+    /// The position will be capped at the maximal possible position.
+    pub fn set_position(&mut self, col: usize, row: usize) {
+        self.col = min(col, self.width - 1);
+        self.row = min(row, self.height - 1);
+    }
 
-    // /// Gets the position of the logical cursor on screen in (col, row) order
-    // pub fn get_position(&self) -> (u8, u8) {
-    //     (self.col, self.row)
-    // }
+    /// Gets the position of the logical cursor on screen in (col, row) order
+    pub fn get_position(&self) -> (usize, usize) {
+        (self.col, self.row)
+    }
 
     // /// Gets the logical dimensions of the screen in terms of characters, as (width, height)
     // pub fn get_dimensions(&self) -> (u8, u8) {
@@ -84,65 +87,72 @@ impl Cursor {
     // }
 }
 
-
-pub struct TerminalView<DI, F> {
+struct RenderEngine<DI, F> {
     display: Display<DI>,
+    font:  F,
     cursor: Cursor,
-    font: F,
-    line_buffer: [[u8;32]; 8], //TODO: should depen on view size and font size
     tabsize: u8,
 }
 
-impl<DI, F> TerminalView<DI, F>
+impl<DI, F> RenderEngine<DI, F>
 where
     DI: WriteOnlyDataCommand,
     F: TerminalFont
 {
-    /// Create new TerminalMode instance
-    pub fn new(display: Display<DI>, mut font: F) -> Self {
+
+    pub fn new(display: Display<DI>, mut font: F, tabsize: u8) -> Self {
         let cursor = Cursor::new(font.char_size(), display.dimensions());
-        TerminalView {
+
+        Self {
             display,
-            cursor,
             font,
-            line_buffer: [[0u8;32]; 8],
-            tabsize: 4u8
+            cursor,
+            tabsize
         }
     }
 
     pub fn init(&mut self) -> Result<(), DisplayError> {
+
         self.display.init()?;
         self.display.on()?;
         self.clear()?;
-        self.write_char(0x1A as char)?;
         Ok(())
     }
 
     pub fn clear(&mut self) -> Result<(), DisplayError> {
 
+        self.display.set_draw_area((0,0), (128, 64))?;
+
         let buffer: [u8; 128] = [0u8; 128];
         for _i in 0..64 {
             self.display.draw(&buffer)?;
         }
+        self.cursor.set_position(0,0);
+        self.write_char(0x1A as char)?;
 
+        Ok(())
+    }
+
+    fn render(&mut self, queue: &Queue<u8, U512, u16>) -> Result<(), DisplayError> {
+
+        let (x,y) = self.cursor.get_position();
+        self.clear()?;
+        if y >= 7 {
+        }
+        for byte in queue.into_iter() {
+            let chr = *byte;
+            self.write_char(chr as char)?;
+        }
         Ok(())
     }
 
     pub fn new_line(&mut self) -> Result<(), DisplayError> {
         self.cursor.advance_line();
-        self.write_char(0x1A as char)
-    }
-
-    pub fn write_string(&mut self, s: &str)  -> Result<(), DisplayError>  {
-        for c in s.chars() {
-            self.write_char(c)?;
-        }
+        self.write_char(0x1A as char)?;
         Ok(())
     }
 
-    pub fn write_char(&mut self, chr: char) -> Result<(), DisplayError> {
-
-
+    fn write_char(&mut self, chr: char) -> Result<(), DisplayError> {
 
         match chr {
             '\n' => self.new_line()?,
@@ -150,12 +160,10 @@ where
                 for _ in 0..self.tabsize {
                     self.draw_char(' ')?;
                 }
-
             },
             '\r' => {},
             _ => self.draw_char(chr)?
         }
-
 
         Ok(())
     }
@@ -166,6 +174,57 @@ where
         self.display.set_draw_area(draw_area.0, draw_area.1)?;
         self.display.draw(&bitmap)?;
         self.cursor.advance();
+        Ok(())
+    }
+}
+
+pub struct TerminalView<DI, F> {
+    render: RenderEngine<DI, F>,
+    line_buffer: Queue<u8, U512, u16>,
+}
+
+impl<DI, F> TerminalView<DI, F>
+where
+    DI: WriteOnlyDataCommand,
+    F: TerminalFont
+{
+    /// Create new TerminalMode instance
+    pub fn new(display: Display<DI>, font: F) -> Self {
+        TerminalView {
+            render: RenderEngine::new(display, font, 4u8),
+            line_buffer: Queue::u16(),
+        }
+    }
+
+    pub fn init(&mut self) -> Result<(), DisplayError> {
+        self.render.init()?;
+        Ok(())
+    }
+
+    pub fn write_string(&mut self, s: &str)  -> Result<(), DisplayError>  {
+
+        let mut free = self.line_buffer.capacity() - self.line_buffer.len();
+
+        // remove lines until enough space
+        while free < (s.len() as u16) {
+
+            let mut chr: char = 'A';
+            while chr != '\n' {
+                match self.line_buffer.dequeue() {
+                    Some(c) => chr = c as char,
+                    None => break
+                }
+            }
+
+            free = self.line_buffer.capacity() - self.line_buffer.len();
+        }
+
+        for byte in s.as_bytes() {
+            self.line_buffer.enqueue(*byte).unwrap(); //todo handle error
+        }
+
+        self.render.render(&self.line_buffer)?;
+
         Ok(())
     }
 }
