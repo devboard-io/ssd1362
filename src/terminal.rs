@@ -159,11 +159,15 @@ where
     fn render_all<'a>(&mut self, lines: impl Iterator<Item=&'a[u8]>) -> Result<(), DisplayError> {
         self.cursor.set_position(0,0);
 
-        let num_chars_per_line = self.cursor.width;
-
         for line in lines {
 
-            let extra_lines = line.len() / num_chars_per_line; // lines more than 1 per element
+            // lines more than 1 per element
+            let extra_lines = if line[line.len()-1] == '\n' as u8 {
+                (line.len() - 1) / (self.cursor.width + 1)
+            } else {
+                line.len() / (self.cursor.width + 1)
+            };
+
             for _ in 0..extra_lines {
                 self.cursor.advance_line();
             }
@@ -179,6 +183,10 @@ where
                 }
 
                 self.write_char(*byte as char)?;
+
+                if *byte as char == '\n' {
+                    break;
+                }
 
                 if let Some(wrap) = self.cursor.advance() {
                     if self.wrap {
