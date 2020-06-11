@@ -16,7 +16,7 @@ impl TerminalFont for Font6x8 {
     fn get_char(&self, chr: u8) -> [u8; 4*8] {
         let i: usize = (chr as usize ) * 8;
         let j: usize = i+8;
-        TerminalChar {src:  &CONSOLE_FONT_6X8[i .. j], w: 8, h: 8}.bitmap()
+        TerminalChar {src:  &CONSOLE_FONT_6X8[i .. j], w: 8, h: 8}.v_bitmap()
     }
 }
 
@@ -51,6 +51,33 @@ impl TerminalChar {
                     nibble = 0;
                 }
             }
+        }
+
+        bitmap
+    }
+
+    pub fn v_bitmap(&self) -> [u8; 8*4] {
+        let mut bitmap: [u8; 8*4] = [0; 8*4];
+
+        for i in 0..8usize {
+
+            let byte = self.src[i];
+
+            for j in 0..4usize {
+
+                let index: usize = (i + 8* j) as usize;
+                let shift = 7 - 2 * j;
+                let bits = byte & (0b11 << shift);
+
+                if byte & (0b10 << shift) > 0 {
+                    bitmap[index] |= 0xF0
+                }
+                if byte & (0b01 << shift) > 0 {
+                    bitmap[index] |= 0x0F
+                }
+
+            }
+
         }
 
         bitmap

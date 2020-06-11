@@ -81,7 +81,6 @@ where
             iface,
             rotation,
             size,
-            // displaybuffer: [false; 256*4] // TODO: buffer size depends on display size
         }
     }
 
@@ -92,13 +91,23 @@ where
         Command::ColumnAddress(0, 0x7f).send(&mut self.iface)?;
         Command::RowAddress(0, 0x3f).send(&mut self.iface)?;
 
+        // let remap = match self.rotation {
+        //     DisplayRotation::Rotate0 => 0x50, // 0xD2 also works
+        //     DisplayRotation::Rotate180 => 0x43, // 0xC1 also works
+        //     //TODO implement 90 and 270 rotations
+        //     DisplayRotation::Rotate90 => 0x00,
+        //     DisplayRotation::Rotate270 => 0x00
+        // };
+
+        // vertical mode
         let remap = match self.rotation {
-            DisplayRotation::Rotate0 => 0x50, // 0xD2 also works
-            DisplayRotation::Rotate180 => 0x43, // 0xC1 also works
-            //TODO implement 90 and 270 rotations
+            DisplayRotation::Rotate0 => 0x54,
+            DisplayRotation::Rotate180 => 0x45, // 0b01[0]0 [0]101
             DisplayRotation::Rotate90 => 0x00,
             DisplayRotation::Rotate270 => 0x00
         };
+
+
         Command::Remap(remap).send(&mut self.iface)?;
 
         Command::StartLine(0).send(&mut self.iface)?;
@@ -174,31 +183,6 @@ where
     pub fn scroll(&mut self, offset: u8) -> Result<(), DisplayError> {
         Command::DisplayOffset(offset).send(&mut self.iface)
     }
-
-    // pub fn write_string(&mut self, s: &str, x: u8, y: u8)  -> Result<(), DI::Error>  {
-    //     let mut i: u8 = 0;
-    //     for c in s.chars() {
-    //         self.write_char(c, x+i, y)?;
-    //         i += 1;
-    //     }
-    //     Ok(())
-    // }
-
-    // pub fn write_char(&mut self, chr: char, x: u8, y:u8) -> Result<(), DI::Error> {
-    //     let chr = get_char(chr as u8);
-
-    //     // Columns are 2 pixels wide
-    //     let w = chr.w/2;
-    //     let x_start = x * w;
-    //     let x_end = x_start + w - 1;
-
-    //     let y_start = y * chr.h;
-    //     let y_end = y_start + chr.h - 1;
-
-    //     Command::ColumnAddress(x_start, x_end).send(&mut self.iface)?;
-    //     Command::RowAddress(y_start, y_end).send(&mut self.iface)?;
-    //     self.draw(&chr.bitmap())
-    // }
 
     // pub fn flush(&mut self) -> Result<(), DisplayError> {
 
