@@ -147,23 +147,17 @@ where
     pub fn clear(&mut self) -> Result<(), DisplayError> {
 
         self.display.set_draw_area((0,0), (128, 64))?;
-
         let buffer: [u8; 128] = [0u8; 128];
         for _i in 0..64 {
             self.display.draw(&buffer)?;
         }
         self.cursor.set_position(0,0);
 
-        // let draw_area = self.cursor.get_line_box(0);
-        // self.display.set_draw_area(draw_area.0, draw_area.1)?;
-
-        // self.write_char(0x1A as char)?;
-
         Ok(())
     }
 
     fn render_all<'a>(&mut self, lines: impl Iterator<Item=&'a[u8]>) -> Result<(), DisplayError> {
-        self.clear()?;
+        self.cursor.set_position(0,0);
 
         let num_chars_per_line = self.cursor.width;
 
@@ -205,10 +199,21 @@ where
         Ok(())
     }
 
+    fn fill_blank(&mut self) -> Result<(), DisplayError> {
+        loop {
+            self.write_char(' ')?;
+            if let Some(wrap) = self.cursor.advance() {
+                break;
+            }
+        }
+        Ok(())
+    }
+
     fn write_char(&mut self, chr: char) -> Result<(), DisplayError> {
 
         match chr {
             '\n' =>  {
+                self.fill_blank()?;
                 self.cursor.advance_line();
             },
             '\t' => {
