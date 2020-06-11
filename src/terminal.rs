@@ -169,8 +169,8 @@ where
 
         for line in lines {
 
-            let num_lines = line.len() / num_chars_per_line + 1 - 1;
-            for _ in 0..num_lines {
+            let extra_lines = line.len() / num_chars_per_line; // lines more than 1 per element
+            for _ in 0..extra_lines {
                 self.cursor.advance_line();
             }
 
@@ -196,10 +196,10 @@ where
                     }
                 }
 
-                let pos = self.cursor.get_position();
-                if pos.1 >= (self.num_lines ) {
-                    break;
-                }
+            }
+
+            if self.cursor.get_position().1 >= self.num_lines {
+                break;
             }
         }
         Ok(())
