@@ -41,7 +41,7 @@ impl Cursor {
     pub fn advance(&mut self) -> Option<CursorWrapEvent> {
         self.col = (self.col + 1) % self.width;
         if self.col == 0 {
-            self.row = (self.row + 1) % self.height;
+            // self.row = (self.row - 1) % self.height;
             Some(CursorWrapEvent(self.row))
         } else {
             None
@@ -51,17 +51,25 @@ impl Cursor {
     /// Advances the logical cursor to the start of the next line
     /// Returns a value indicating the now active line
     pub fn advance_line(&mut self) -> CursorWrapEvent {
-        self.row = (self.row + 1) % self.height;
+        self.row = (self.row + 1); // % self.height;
         self.col = 0;
         CursorWrapEvent(self.row)
     }
 
-    pub fn get_line_box(&self) -> ((u8, u8), (u8, u8)) {
+    pub fn move_up(&mut self) {
+        self.row += 1;
+    }
+
+    pub fn move_down(&mut self) {
+        self.row -= 1;
+    }
+
+    pub fn get_line_box(&self, offset: usize) -> ((u8, u8), (u8, u8)) {
         let (chr_w,chr_h) = self.char_size;
 
         let x_end = self.width * chr_w / 2;
 
-        let y_start = (self.height - 1) * chr_h - self.row * chr_h;
+        let y_start = (self.height - 1) * chr_h - (self.row - offset) * chr_h;
         let y_end = y_start + chr_h;
 
         ((0u8, y_start as u8), (x_end as u8, y_end as u8))
@@ -104,6 +112,7 @@ struct RenderEngine<DI, F> {
     font:  F,
     cursor: Cursor,
     tabsize: u8,
+    wrap: bool,
     num_lines: usize
 }
 
@@ -122,6 +131,7 @@ where
             font,
             cursor,
             tabsize,
+            wrap: true,
             num_lines
         }
     }
@@ -144,25 +154,50 @@ where
         }
         self.cursor.set_position(0,0);
 
-        let draw_area = self.cursor.get_line_box();
-        self.display.set_draw_area(draw_area.0, draw_area.1)?;
+        // let draw_area = self.cursor.get_line_box(0);
+        // self.display.set_draw_area(draw_area.0, draw_area.1)?;
 
         // self.write_char(0x1A as char)?;
 
         Ok(())
     }
 
-    fn render<'a>(&mut self, lines: impl Iterator<Item=&'a[u8]>) -> Result<(), DisplayError> {
+    fn render_all<'a>(&mut self, lines: impl Iterator<Item=&'a[u8]>) -> Result<(), DisplayError> {
         self.clear()?;
+
+        let num_chars_per_line = self.cursor.width;
+
         for line in lines {
+
+            let num_lines = line.len() / num_chars_per_line + 1 - 1;
+            for _ in 0..num_lines {
+                self.cursor.advance_line();
+            }
+
+            let mut line_offset = 0;
+
+            let draw_area = self.cursor.get_line_box(line_offset);
+            self.display.set_draw_area(draw_area.0, draw_area.1)?;
+
             for byte in line {
                 if *byte as char == '\0' {
                     break;
                 }
-                let chr = *byte;
-                self.write_char(chr as char)?;
+
+                self.write_char(*byte as char)?;
+
+                if let Some(wrap) = self.cursor.advance() {
+                    if self.wrap {
+                        line_offset += 1;
+                        let draw_area = self.cursor.get_line_box(line_offset);
+                        self.display.set_draw_area(draw_area.0, draw_area.1)?;
+                    } else {
+                        break;
+                    }
+                }
+
                 let pos = self.cursor.get_position();
-                if pos.1 >= self.num_lines {
+                if pos.1 >= (self.num_lines ) {
                     break;
                 }
             }
@@ -170,18 +205,12 @@ where
         Ok(())
     }
 
-    pub fn new_line(&mut self) -> Result<(), DisplayError> {
-        self.cursor.advance_line();
-        let draw_area = self.cursor.get_line_box();
-        self.display.set_draw_area(draw_area.0, draw_area.1)?;
-        // self.write_char(0x1A as char)?;
-        Ok(())
-    }
-
     fn write_char(&mut self, chr: char) -> Result<(), DisplayError> {
 
         match chr {
-            '\n' => self.new_line()?,
+            '\n' =>  {
+                self.cursor.advance_line();
+            },
             '\t' => {
                 for _ in 0..self.tabsize {
                     self.draw_char(' ')?;
@@ -198,7 +227,6 @@ where
     fn draw_char(&mut self, chr: char) -> Result<(), DisplayError> {
         let bitmap = self.font.get_char(chr as u8);
         self.display.draw(&bitmap)?;
-        self.cursor.advance();
         Ok(())
     }
 }
@@ -245,7 +273,7 @@ where
     }
 
     pub fn render(&mut self) {
-        self.render.render(self.char_buffer.reverse_iter(self.scroll_offset));
+        self.render.render_all(self.char_buffer.reverse_iter(self.scroll_offset));
     }
 
     pub fn set_scroll_offset(&mut self, offset: usize) {
