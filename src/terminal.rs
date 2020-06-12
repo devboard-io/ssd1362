@@ -39,8 +39,8 @@ impl Cursor {
     /// Advances the logical cursor by one character.
     /// Returns a value indicating if this caused the cursor to wrap to the next line or the next screen.
     pub fn advance(&mut self) -> Option<CursorWrapEvent> {
-        self.col = (self.col + 1) % self.width;
-        if self.col == 0 {
+        self.col = min(self.col + 1, self.width);
+        if self.col == self.width {
             // self.row = (self.row - 1) % self.height;
             Some(CursorWrapEvent(self.row))
         } else {
@@ -51,7 +51,7 @@ impl Cursor {
     /// Advances the logical cursor to the start of the next line
     /// Returns a value indicating the now active line
     pub fn advance_line(&mut self) -> CursorWrapEvent {
-        self.row = (self.row + 1); // % self.height;
+        self.row = self.row + 1; // % self.height;
         self.col = 0;
         CursorWrapEvent(self.row)
     }
@@ -161,11 +161,17 @@ where
 
         for line in lines {
 
-            // lines more than 1 per element
-            let extra_lines = if line[line.len()-1] == '\n' as u8 {
-                (line.len() - 1) / (self.cursor.width + 1)
+            let line_length = if line[line.len()-1] == '\n' as u8 {
+                line.len() - 1
             } else {
-                line.len() / (self.cursor.width + 1)
+                line.len()
+            };
+
+            // lines more than 1 per element
+            let extra_lines = if self.wrap {
+                line_length / (self.cursor.width + 1)
+            } else {
+                0
             };
 
             for _ in 0..extra_lines {
@@ -178,27 +184,30 @@ where
             self.display.set_draw_area(draw_area.0, draw_area.1)?;
 
             for byte in line {
-                if *byte as char == '\0' {
-                    break;
-                }
-
-                self.write_char(*byte as char)?;
 
                 if *byte as char == '\n' {
                     break;
                 }
 
+                self.write_char(*byte as char)?;
+
+
                 if let Some(wrap) = self.cursor.advance() {
-                    if self.wrap {
+                    if self.wrap && (line_length > self.cursor.width) {
                         line_offset += 1;
+                        self.cursor.set_position(0, self.cursor.get_position().1);
                         let draw_area = self.cursor.get_line_box(line_offset);
                         self.display.set_draw_area(draw_area.0, draw_area.1)?;
                     } else {
+                        // no wrap, go to next line
                         break;
                     }
                 }
 
             }
+
+            self.fill_blank()?;
+            self.cursor.advance_line();
 
             if self.cursor.get_position().1 >= self.num_lines {
                 break;
@@ -208,6 +217,9 @@ where
     }
 
     fn fill_blank(&mut self) -> Result<(), DisplayError> {
+        if self.cursor.get_position().0 == self.cursor.width {
+            return Ok(());
+        }
         loop {
             self.write_char(' ')?;
             if let Some(wrap) = self.cursor.advance() {
@@ -220,15 +232,8 @@ where
     fn write_char(&mut self, chr: char) -> Result<(), DisplayError> {
 
         match chr {
-            '\n' =>  {
-                self.fill_blank()?;
-                self.cursor.advance_line();
-            },
-            '\t' => {
-                for _ in 0..self.tabsize {
-                    self.draw_char(' ')?;
-                }
-            },
+            '\t' => self.draw_char(' ')?,
+            '\n' =>  {},
             '\r' => {},
             '\0' => {},
             _ => self.draw_char(chr)?
