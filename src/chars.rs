@@ -28,7 +28,8 @@ pub struct TerminalChar {
 
 impl TerminalChar {
 
-    pub fn bitmap(&self) -> [u8; 8*4] {
+    /// Returns bitmap for horizontal rendering
+    pub fn h_bitmap(&self) -> [u8; 8*4] {
         let mut bitmap: [u8; 8*4] = [0; 8*4];
 
         let mut index = 0;
@@ -56,6 +57,7 @@ impl TerminalChar {
         bitmap
     }
 
+    /// Returns bitmap for vertical rendering
     pub fn v_bitmap(&self) -> [u8; 8*4] {
         let mut bitmap: [u8; 8*4] = [0; 8*4];
 
@@ -67,7 +69,6 @@ impl TerminalChar {
 
                 let index: usize = (i + 8* j) as usize;
                 let shift = 7 - 2 * j;
-                let bits = byte & (0b11 << shift);
 
                 if byte & (0b10 << shift) > 0 {
                     bitmap[index] |= 0xF0

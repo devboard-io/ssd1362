@@ -2,4 +2,5 @@
 
 ```
 cargo run --example uartwise
+cargo run --example terminal
 ```

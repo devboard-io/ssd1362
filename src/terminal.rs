@@ -37,7 +37,7 @@ impl Cursor {
     }
 
     /// Advances the logical cursor by one character.
-    /// Returns a value indicating if this caused the cursor to wrap to the next line or the next screen.
+    /// Returns a value indicating if this caused the cursor to reach the end  to the next line or the next screen.
     pub fn advance(&mut self) -> Option<CursorWrapEvent> {
         self.col = min(self.col + 1, self.width);
         if self.col == self.width {
@@ -51,17 +51,9 @@ impl Cursor {
     /// Advances the logical cursor to the start of the next line
     /// Returns a value indicating the now active line
     pub fn advance_line(&mut self) -> CursorWrapEvent {
-        self.row = self.row + 1; // % self.height;
+        self.row = self.row + 1;
         self.col = 0;
         CursorWrapEvent(self.row)
-    }
-
-    pub fn move_up(&mut self) {
-        self.row += 1;
-    }
-
-    pub fn move_down(&mut self) {
-        self.row -= 1;
     }
 
     pub fn get_line_box(&self, offset: usize) -> ((u8, u8), (u8, u8)) {
@@ -73,20 +65,6 @@ impl Cursor {
         let y_end = y_start + chr_h;
 
         ((0u8, y_start as u8), (x_end as u8, y_end as u8))
-    }
-
-    pub fn get_char_box(&self) -> ((u8, u8), (u8, u8)) {
-
-        let (chr_w,chr_h) = self.char_size;
-
-        let w = chr_w/2;
-        let x_start = self.col * w;
-        let x_end = x_start + w;
-
-        let y_start = self.row * chr_h;
-        let y_end = y_start + chr_h;
-
-        ((x_start as u8, y_start as u8), (x_end as u8, y_end as u8))
     }
 
     /// Sets the position of the logical cursor arbitrarily.
@@ -111,7 +89,6 @@ struct RenderEngine<DI, F> {
     display: Display<DI>,
     font:  F,
     cursor: Cursor,
-    tabsize: u8,
     wrap: bool,
     num_lines: usize
 }
@@ -122,7 +99,7 @@ where
     F: TerminalFont
 {
 
-    pub fn new(display: Display<DI>, mut font: F, tabsize: u8) -> Self {
+    pub fn new(display: Display<DI>, mut font: F, wrap: bool) -> Self {
         let cursor = Cursor::new(font.char_size(), display.dimensions());
 
         let num_lines = display.dimensions().1 / font.char_size().1;
@@ -130,8 +107,7 @@ where
             display,
             font,
             cursor,
-            tabsize,
-            wrap: true,
+            wrap,
             num_lines
         }
     }
@@ -192,7 +168,7 @@ where
                 self.write_char(*byte as char)?;
 
 
-                if let Some(wrap) = self.cursor.advance() {
+                if let Some(_wrap) = self.cursor.advance() {
                     if self.wrap && (line_length > self.cursor.width) {
                         line_offset += 1;
                         self.cursor.set_position(0, self.cursor.get_position().1);
@@ -222,7 +198,7 @@ where
         }
         loop {
             self.write_char(' ')?;
-            if let Some(wrap) = self.cursor.advance() {
+            if let Some(_wrap) = self.cursor.advance() {
                 break;
             }
         }
@@ -263,7 +239,7 @@ where
     /// Create new TerminalView instance
     pub fn new(display: Display<DI>, font: F) -> Self {
         TerminalView {
-            render: RenderEngine::new(display, font, 4u8),
+            render: RenderEngine::new(display, font, true),
             char_buffer: IndexedRingbuffer::new(),
             scroll_offset: 0
         }
@@ -274,15 +250,15 @@ where
         Ok(())
     }
 
-    pub fn write_string(&mut self, s: &str)  -> Result<(), DisplayError> {
+    pub fn write_string(&mut self, s: &str) -> Result<(), DisplayError> {
 
-        let mut free = self.char_buffer.free();
+        // let mut free = self.char_buffer.free();
 
-        // remove lines until enough space
-        while free < (s.len() as usize) {
-            self.char_buffer.pop();
-            free = self.char_buffer.free();
-        }
+        // // remove lines until enough space
+        // while free < (s.len() as usize) {
+        //     self.char_buffer.pop();
+        //     free = self.char_buffer.free();
+        // }
 
         self.char_buffer.add(s.as_bytes());
 
@@ -290,8 +266,8 @@ where
         Ok(())
     }
 
-    pub fn render(&mut self) {
-        self.render.render_all(self.char_buffer.reverse_iter(self.scroll_offset));
+    pub fn render(&mut self) -> Result<(), DisplayError> {
+        self.render.render_all(self.char_buffer.reverse_iter(self.scroll_offset))
     }
 
     pub fn set_scroll_offset(&mut self, offset: usize) {
