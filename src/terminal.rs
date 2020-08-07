@@ -252,16 +252,7 @@ where
 
     pub fn write_string(&mut self, s: &str) -> Result<(), DisplayError> {
 
-        // let mut free = self.char_buffer.free();
-
-        // // remove lines until enough space
-        // while free < (s.len() as usize) {
-        //     self.char_buffer.pop();
-        //     free = self.char_buffer.free();
-        // }
-
         self.char_buffer.add(s.as_bytes());
-
 
         Ok(())
     }
