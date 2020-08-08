@@ -87,8 +87,6 @@ fn main() -> ! {
         &mut rcc);
 
 
-    writeln!(usart, "Start!").unwrap();
-
     // do power on reset
     rst.set_low().unwrap();
     delay.delay(1.ms());
@@ -106,40 +104,89 @@ fn main() -> ! {
     terminal.init().unwrap();
 
 
+
     writeln!(usart, "Display init done!").unwrap();
 
     // write!(terminal, "=> regel 1.\n\n").unwrap();
     // writeln!(terminal, "").unwrap();
     // terminal.write_string("\n").unwrap();
     // write!(terminal, " ").unwrap();
+    writeln!(terminal, "AA").unwrap();
+    terminal.render();
+
+    writeln!(terminal, "BB").unwrap();
+    terminal.render();
+
+    writeln!(terminal, "CC").unwrap();
+    terminal.render();
+    writeln!(terminal, "0 Lange zin van twee regels la").unwrap();
+    terminal.render();
+    writeln!(terminal, "1").unwrap();
+    writeln!(terminal, "2").unwrap();
+    writeln!(terminal, "1").unwrap();
+    writeln!(terminal, "2").unwrap();
+    writeln!(terminal, "1").unwrap();
+    writeln!(terminal, "2").unwrap();
+    writeln!(terminal, "3").unwrap();
+    terminal.render();
 
     writeln!(terminal, "0 sunt aut. Molestiae est nihi").unwrap();
-    // writeln!(terminal, "2 Nam eligendi dolore hic.").unwrap();
-
-    // writeln!(terminal, "1 Eum sunt qui est id officiis N").unwrap();
-    // write!(terminal, "2 Nam eligendi dolore hic.").unwrap();
-
-    // writeln!(terminal, "1 Eum sunt qui est id officiis Nam eligendi dolore hic. Est ratione pariatur dolores. repudiandae aut iure ipsum.").unwrap();
-
-    writeln!(terminal, "1 Eum sunt qui est id officiis").unwrap();
     writeln!(terminal, "2 Nam eligendi dolore hic.").unwrap();
+
+    writeln!(terminal, "1 Eum sunt qui est id officiis N").unwrap();
+    write!(terminal, "2 Nam eligendi dolore hic.").unwrap();
+
+    writeln!(terminal, "1 Eum sunt qui est id officiis Nam eligendi dolore hic. Est ratione pariatur dolores. repudiandae aut iure ipsum.").unwrap();
+    writeln!(terminal, "1 Eum sunt qui ").unwrap();
+    terminal.render();
+
+    writeln!(terminal, "1 Eum sunt qui est id offic").unwrap();
+    terminal.render();
+
+    writeln!(terminal, "2 Nam eligendi dolore hic.").unwrap();
+    terminal.render();
     writeln!(terminal, "3 Est ratione pariatur dolores").unwrap();
+    terminal.render();
     writeln!(terminal, "4 repudiandae aut iure ipsum").unwrap();
+    terminal.render();
     writeln!(terminal, "5 molestias. Enim quis dolorem").unwrap();
+    terminal.render();
     writeln!(terminal, "6 Beatae eligendi eius et cons").unwrap();
+    terminal.render();
     writeln!(terminal, "7 sunt aut. Molestiae est nihi").unwrap();
+    terminal.render();
     writeln!(terminal, "8 laborum eligendi inventore.").unwrap();
+    terminal.render();
     writeln!(terminal, "9 Lorem ipsum dolor sit amet").unwrap();
+    terminal.render();
     writeln!(terminal, "10 consectetur adipiscing elit").unwrap();
+    terminal.render();
     writeln!(terminal, "11 sed do eiusmod tempor sed").unwrap();
+    terminal.render();
     writeln!(terminal, "12 do eiusmod tempor incididunt").unwrap();
+    terminal.render();
     writeln!(terminal, "13 sed ut labore et dolore magna").unwrap();
+    terminal.render();
     writeln!(terminal, "14 aliqua. Ut enim ad minim veniam").unwrap();
+    terminal.render();
     writeln!(terminal, "15 quis nostrud exercitation ullamco").unwrap();
 
     terminal.render();
 
-    // loop {}
+    writeln!(terminal, "AA").unwrap();
+    terminal.render();
+
+    writeln!(terminal, "BB").unwrap();
+    terminal.render();
+
+    writeln!(terminal, "CC").unwrap();
+    terminal.render();
+
+    loop {
+        delay.delay(1500.ms());
+        led_g.toggle().unwrap();
+        led_r.toggle().unwrap();
+    }
 
     let mut scroll: i32 = 0;
     let mut step: i32 = 1;

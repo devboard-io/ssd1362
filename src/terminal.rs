@@ -6,7 +6,7 @@ use core::{cmp::min, fmt};
 pub use crate::chars::{Font6x8, TerminalFont};
 use crate::display::Display;
 
-use heapless::consts::U512;
+use heapless::consts::U1024 as BUFFERSIZE;
 
 /// Contains the new row that the cursor has wrapped around to
 struct CursorWrapEvent(usize);
@@ -36,6 +36,11 @@ impl Cursor {
         }
     }
 
+    /// True when cursor is no longer on the screen
+    pub fn is_at_end(&self) -> bool {
+        self.row >= self.height
+    }
+
     /// Advances the logical cursor by one character.
     /// Returns a value indicating if this caused the cursor to reach the end  to the next line or the next screen.
     pub fn advance(&mut self) -> Option<CursorWrapEvent> {
@@ -61,6 +66,8 @@ impl Cursor {
 
         let x_end = self.width * chr_w / 2;
 
+        // TODO this can become negative if self.row => self.height
+        // how to handle
         let y_start = (self.height - 1) * chr_h - (self.row - offset) * chr_h;
         let y_end = y_start + chr_h;
 
@@ -80,9 +87,9 @@ impl Cursor {
     }
 
     // /// Gets the logical dimensions of the screen in terms of characters, as (width, height)
-    // pub fn get_dimensions(&self) -> (u8, u8) {
-    //     (self.width, self.height)
-    // }
+    pub fn get_dimensions(&self) -> (usize, usize) {
+        (self.width, self.height)
+    }
 }
 
 struct RenderEngine<DI, F> {
@@ -132,7 +139,9 @@ where
         Ok(())
     }
 
+    /// Renders the full screen at once
     fn render_all<'a>(&mut self, lines: impl Iterator<Item=&'a[u8]>) -> Result<(), DisplayError> {
+
         self.cursor.set_position(0,0);
 
         for line in lines {
@@ -143,12 +152,19 @@ where
                 line.len()
             };
 
-            // lines more than 1 per element
+            // Check if element needs more than 1 line
             let extra_lines = if self.wrap {
                 line_length / (self.cursor.width + 1)
             } else {
                 0
             };
+
+            let free_lines = self.cursor.get_dimensions().1 - self.cursor.get_position().1;
+            if extra_lines >= free_lines {
+                // no more space on the screen for a multiline element.
+                // We will just skip the entire element
+                break;
+            }
 
             for _ in 0..extra_lines {
                 self.cursor.advance_line();
@@ -189,6 +205,15 @@ where
                 break;
             }
         }
+
+        // clear rest of screen in case there was old data that has been removed from buffer
+        while !self.cursor.is_at_end() {
+            let draw_area = self.cursor.get_line_box(0);
+            self.display.set_draw_area(draw_area.0, draw_area.1)?;
+            self.fill_blank()?;
+            self.cursor.advance_line();
+        }
+
         Ok(())
     }
 
@@ -227,7 +252,7 @@ where
 
 pub struct TerminalView<DI, F> {
     render: RenderEngine<DI, F>,
-    char_buffer: IndexedRingbuffer<U512>,
+    char_buffer: IndexedRingbuffer<BUFFERSIZE>,
     scroll_offset: usize,
 }
 
