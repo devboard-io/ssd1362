@@ -11,6 +11,9 @@ categories  = ["embedded", "hardware-support", "no-std"]
 version = "0.1.0"
 readme = "README.md"
 
+[package.metadata.docs.rs]
+targets = ["thumbv6m-none-eabi"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 display-interface = "0.4.0"
