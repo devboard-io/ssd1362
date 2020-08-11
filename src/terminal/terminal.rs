@@ -1,5 +1,3 @@
-
-
 use display_interface::{DisplayError, WriteOnlyDataCommand};
 use core::{cmp::min, fmt};
 

@@ -21,9 +21,7 @@ use stm32g0xx_hal::{
     rcc
 };
 
-use display_interface_spi::{SPIInterface, SPIInterfaceNoCS};
 use ssd1362::{self, display::DisplayRotation, terminal};
-
 
 #[entry]
 fn main() -> ! {
@@ -108,46 +106,46 @@ fn main() -> ! {
     writeln!(usart, "Display init done!").unwrap();
 
     writeln!(terminal, "0 sunt aut. Molestiae est nihi").unwrap();
-    terminal.render();
+    terminal.render().unwrap();
 
     writeln!(terminal, "1 Eum sunt qui est id offic").unwrap();
-    terminal.render();
+    terminal.render().unwrap();
 
     writeln!(terminal, "2 Nam eligendi dolore hic.").unwrap();
-    terminal.render();
+    terminal.render().unwrap();
     writeln!(terminal, "3 Est ratione pariatur dolores").unwrap();
-    terminal.render();
+    terminal.render().unwrap();
     writeln!(terminal, "4 repudiandae aut iure ipsum").unwrap();
-    terminal.render();
+    terminal.render().unwrap();
     writeln!(terminal, "5 molestias. Enim quis dolorem").unwrap();
-    terminal.render();
+    terminal.render().unwrap();
     writeln!(terminal, "6 Beatae eligendi eius et cons").unwrap();
-    terminal.render();
+    terminal.render().unwrap();
     writeln!(terminal, "7 sunt aut. Molestiae est nihi").unwrap();
-    terminal.render();
+    terminal.render().unwrap();
     writeln!(terminal, "8 laborum eligendi inventore.").unwrap();
-    terminal.render();
+    terminal.render().unwrap();
     writeln!(terminal, "9 Lorem ipsum dolor sit amet").unwrap();
-    terminal.render();
+    terminal.render().unwrap();
     writeln!(terminal, "10 consectetur adipiscing elit").unwrap();
-    terminal.render();
+    terminal.render().unwrap();
     writeln!(terminal, "11 sed do eiusmod tempor sed").unwrap();
-    terminal.render();
+    terminal.render().unwrap();
     writeln!(terminal, "12 do eiusmod tempor incididunt").unwrap();
-    terminal.render();
+    terminal.render().unwrap();
     writeln!(terminal, "13 sed ut labore et dolore magna").unwrap();
-    terminal.render();
+    terminal.render().unwrap();
     writeln!(terminal, "14 aliqua. Ut enim ad minim veniam").unwrap();
-    terminal.render();
+    terminal.render().unwrap();
     writeln!(terminal, "15 quis nostrud exercitation ullamco").unwrap();
 
-    terminal.render();
+    terminal.render().unwrap();
 
     let mut scroll: i32 = 0;
     let mut step: i32 = 1;
     loop {
         terminal.set_scroll_offset(scroll as usize);
-        terminal.render();
+        terminal.render().unwrap();
 
         scroll += step;
         if scroll % 8 == 0 {

@@ -12,7 +12,6 @@ cargo run --example terminal
 Example usage:
 
 ```rust
-use display_interface_spi::{SPIInterface, SPIInterfaceNoCS};
 use ssd1362::{self, display::DisplayRotation, terminal};
 
 // ... code omitted
