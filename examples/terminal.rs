@@ -21,7 +21,7 @@ use stm32g0xx_hal::{
     rcc
 };
 
-pub use display_interface_spi::{SPIInterface, SPIInterfaceNoCS};
+use display_interface_spi::{SPIInterface, SPIInterfaceNoCS};
 use ssd1362::{self, display::DisplayRotation, terminal};
 
 
@@ -107,37 +107,7 @@ fn main() -> ! {
 
     writeln!(usart, "Display init done!").unwrap();
 
-    // write!(terminal, "=> regel 1.\n\n").unwrap();
-    // writeln!(terminal, "").unwrap();
-    // terminal.write_string("\n").unwrap();
-    // write!(terminal, " ").unwrap();
-    writeln!(terminal, "AA").unwrap();
-    terminal.render();
-
-    writeln!(terminal, "BB").unwrap();
-    terminal.render();
-
-    writeln!(terminal, "CC").unwrap();
-    terminal.render();
-    writeln!(terminal, "0 Lange zin van twee regels la").unwrap();
-    terminal.render();
-    writeln!(terminal, "1").unwrap();
-    writeln!(terminal, "2").unwrap();
-    writeln!(terminal, "1").unwrap();
-    writeln!(terminal, "2").unwrap();
-    writeln!(terminal, "1").unwrap();
-    writeln!(terminal, "2").unwrap();
-    writeln!(terminal, "3").unwrap();
-    terminal.render();
-
     writeln!(terminal, "0 sunt aut. Molestiae est nihi").unwrap();
-    writeln!(terminal, "2 Nam eligendi dolore hic.").unwrap();
-
-    writeln!(terminal, "1 Eum sunt qui est id officiis N").unwrap();
-    write!(terminal, "2 Nam eligendi dolore hic.").unwrap();
-
-    writeln!(terminal, "1 Eum sunt qui est id officiis Nam eligendi dolore hic. Est ratione pariatur dolores. repudiandae aut iure ipsum.").unwrap();
-    writeln!(terminal, "1 Eum sunt qui ").unwrap();
     terminal.render();
 
     writeln!(terminal, "1 Eum sunt qui est id offic").unwrap();
@@ -172,21 +142,6 @@ fn main() -> ! {
     writeln!(terminal, "15 quis nostrud exercitation ullamco").unwrap();
 
     terminal.render();
-
-    writeln!(terminal, "AA").unwrap();
-    terminal.render();
-
-    writeln!(terminal, "BB").unwrap();
-    terminal.render();
-
-    writeln!(terminal, "CC").unwrap();
-    terminal.render();
-
-    loop {
-        delay.delay(1500.ms());
-        led_g.toggle().unwrap();
-        led_r.toggle().unwrap();
-    }
 
     let mut scroll: i32 = 0;
     let mut step: i32 = 1;

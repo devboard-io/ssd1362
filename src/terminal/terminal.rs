@@ -3,7 +3,7 @@
 use display_interface::{DisplayError, WriteOnlyDataCommand};
 use core::{cmp::min, fmt};
 
-pub use crate::chars::{Font6x8, TerminalFont};
+pub use crate::terminal::chars::{Font6x8, TerminalFont};
 use crate::display::Display;
 
 use heapless::consts::U1024 as BUFFERSIZE;
@@ -11,7 +11,7 @@ use heapless::consts::U1024 as BUFFERSIZE;
 /// Contains the new row that the cursor has wrapped around to
 struct CursorWrapEvent(usize);
 
-use indexed_ringbuffer::IndexedRingbuffer;
+use super::ringbuffer::Ringbuffer;
 
 struct Cursor {
     col: usize,
@@ -252,7 +252,7 @@ where
 
 pub struct TerminalView<DI, F> {
     render: RenderEngine<DI, F>,
-    char_buffer: IndexedRingbuffer<BUFFERSIZE>,
+    char_buffer: Ringbuffer<BUFFERSIZE>,
     scroll_offset: usize,
 }
 
@@ -265,7 +265,7 @@ where
     pub fn new(display: Display<DI>, font: F) -> Self {
         TerminalView {
             render: RenderEngine::new(display, font, true),
-            char_buffer: IndexedRingbuffer::new(),
+            char_buffer: Ringbuffer::new(),
             scroll_offset: 0
         }
     }
