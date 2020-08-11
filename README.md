@@ -36,5 +36,5 @@ let mut terminal = terminal::TerminalView::new(display, font);
 terminal.init().unwrap();
 
 writeln!(terminal, "Write a string to the terminal").unwrap();
-terminal.render();
+terminal.render().unwrap();
 ```
