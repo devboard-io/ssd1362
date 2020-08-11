@@ -2,7 +2,7 @@
 name = "ssd1362"
 authors = ["Jitter"]
 edition = "2018"
-description = "A platform agnostic driver to interface with SSD1362 based OLED displays through SPI"
+description = "Driver to interface with SSD1362 based 256x64 OLED displays through SPI"
 documentation = "https://docs.rs/ssd1362"
 keywords = ["embedded-hal-driver", "oled"]
 license = "MIT OR Apache-2.0"
